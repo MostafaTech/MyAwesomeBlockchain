@@ -23,11 +23,11 @@ def start(args):
     print(f'selected block to mine: {block["id"]}')
 
     # add reward to block transactions
-    block["transactions"].append({
-        'sender': f'node_{args.node}',
-        'recipient': args.wallet,
-        'amount': 1
-    })
+    # block["transactions"].append({
+    #     'sender': f'node_{args.node}',
+    #     'recipient': args.wallet,
+    #     'amount': 1
+    # })
     
     # start mining
     block_string = json.dumps(block, sort_keys=True).encode()
@@ -35,6 +35,16 @@ def start(args):
     print(f'block mined with proof = {proof}');
 
     # send the mined block
+    send_block_data = {
+        'miner_wallet': args.wallet,
+        'block_id': block["id"],
+        'proof': proof,
+    }
+    send_block_res = requests.post(node_address, json=send_block_data)
+    if send_block_res.status_code == 200:
+        print('block mined successfully')
+    else:
+        print('block mined failed. server rejected mined block')
 
 # cli parser
 parser = argparse.ArgumentParser()
