@@ -28,13 +28,22 @@ def blocks_get():
 @app.route('/blocks', methods=['POST'])
 def blocks_post():
     values = request.get_json()
-    if bc.add_block_to_chain(values['block_id'], values['proof'], values['miner_wallet']):
-        return { 'message': 'success' }, 200
-    return { 'message': 'request rejected' }, 401
+    result = bc.add_block_to_chain(values['block_id'], values['proof'], values['miner_wallet'])
+    if result[0]:
+        return { 'message': result[1] }, 200
+    return { 'message': result[1] }, 400
 
 @app.route('/chain', methods=['GET'])
 def chain_get():
     return jsonify(bc.chain), 200
+
+@app.route('/verify/transaction', methods=['POST'])
+def verify_transaction():
+    values = request.get_json()
+    tr = bc.get_chain_transaction(values['transaction_id'])
+    if tr is not None:
+        return jsonify(tr), 200
+    return { 'message': 'transaction does not exists' }, 404
 
 
 if __name__ == '__main__':

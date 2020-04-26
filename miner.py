@@ -40,9 +40,9 @@ def start(args):
     }
     send_block_res = requests.post(node_address, json=send_block_data)
     if send_block_res.status_code == 200:
-        print('block mined successfully')
+        print(f'hooray! {send_block_res.json()["message"]}')
     else:
-        print('block mined failed. server rejected mined block')
+        print(f'server rejected: {send_block_res.json()["message"]}')
 
 # cli parser
 parser = argparse.ArgumentParser()

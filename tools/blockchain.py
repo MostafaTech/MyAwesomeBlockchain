@@ -36,34 +36,39 @@ class Blockchain(object):
         self.chain.append(block)
     
     def add_block_to_chain(self, block_id, proof, miner_wallet):
+        # find the requested block in queue
+        block = next((b for b in self.blocks if b["id"] == block_id), None)
         # check if the block is available
-        block_is_in_queue = len(list(b for b in self.blocks if b["id"] == block_id)) > 0
-        if not block_is_in_queue:
-            block_is_in_chain = len(list(b for b in self.chain if b["id"] == block_id)) > 0
-            if block_is_in_chain:
-                block_in_chain = next(b for b in self.chain if b["id"] == block_id)
-                return False, f'block is already in chain with proof: {block_in_chain["proof"]}'
+        if block is None:
+            block = next((b for b in self.chain if b["id"] == block_id), None)
+            if block is not None:
+                return False, f'block is already in the chain with proof: {block["proof"]}'
             return False, 'block does not exists'
-
-        mined_block = next(b for b in self.blocks if b["id"] == block_id)
-        if mined_block is not None:
-            verified = pow.verify(mined_block, proof)
-            if verified:
-                # add to chain
-                last_chain_block = self.chain[-1].copy()
-                last_chain_block_proof = last_chain_block["proof"]
-                del last_chain_block["proof"]
-                last_chain_block_hash = pow.calc_hash_with_proof(last_chain_block, last_chain_block_proof)
-                mined_block["lastBlockHash"] = last_chain_block_hash
-                mined_block["proof"] = proof
-                self.chain.append(mined_block)
-                # remove block from queue
-                self.blocks.remove(mined_block)
-                # add reward for the miner as a new transaction
-                self.add_transaction(f'node_{self.node_id}', miner_wallet, 1)
-            return verified
-        return False
+        
+        verified = pow.verify(block, proof)
+        if verified:
+            # add to chain
+            last_chain_block = self.chain[-1].copy()
+            last_chain_block_proof = last_chain_block["proof"]
+            del last_chain_block["proof"]
+            last_chain_block_hash = pow.calc_hash_with_proof(last_chain_block, last_chain_block_proof)
+            block["lastBlockHash"] = last_chain_block_hash
+            block["proof"] = proof
+            self.chain.append(block)
+            # remove block from queue
+            self.blocks.remove(block)
+            # add reward for the miner as a new transaction
+            self.add_transaction(f'node_{self.node_id}', miner_wallet, 1)
+            return True, 'block added to the chain'
+        return False, 'can\'t verify requested block'
 
     def get_first_block(self):
         if (len(self.blocks) > 0):
             return self.blocks[0]
+
+    def get_chain_transaction(self, transaction_id):
+        for b in self.chain:
+            for t in b["transactions"]:
+                if t["id"] == transaction_id:
+                    return t
+        return None
