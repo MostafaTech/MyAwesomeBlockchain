@@ -3,9 +3,11 @@ from flask import Flask, request, jsonify
 from tools.blockchain import Blockchain
 import tools.pow as pow
 
-bc = Blockchain()
 app = Flask(__name__)
 node_id = 0
+
+bc = Blockchain()
+bc.add_genesis_block_to_chain()
 
 
 @app.route('/transactions', methods=['POST'])

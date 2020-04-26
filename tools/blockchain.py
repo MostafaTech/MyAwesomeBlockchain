@@ -1,6 +1,5 @@
 from time import time
 from uuid import uuid4
-import json
 import tools.pow as pow
 
 class Blockchain(object):
@@ -31,16 +30,32 @@ class Blockchain(object):
             self.transactions.clear()
         return tr
     
+    def add_genesis_block_to_chain(self):
+        block = { 'id': '0', 'timestamp': 0, 'transactions': [] }
+        block["proof"] = pow.calc_proof(block)
+        self.chain.append(block)
+    
     def add_block_to_chain(self, block_id, proof, miner_wallet):
-        mined_block = None
-        for b in self.blocks:
-            if b["id"] == block_id:
-                mined_block = b
+        # check if the block is available
+        block_is_in_queue = len(list(b for b in self.blocks if b["id"] == block_id)) > 0
+        if not block_is_in_queue:
+            block_is_in_chain = len(list(b for b in self.chain if b["id"] == block_id)) > 0
+            if block_is_in_chain:
+                block_in_chain = next(b for b in self.chain if b["id"] == block_id)
+                return False, f'block is already in chain with proof: {block_in_chain["proof"]}'
+            return False, 'block does not exists'
+
+        mined_block = next(b for b in self.blocks if b["id"] == block_id)
         if mined_block is not None:
-            block_string = json.dumps(mined_block, sort_keys=True).encode()
-            verified = pow.verify(block_string, proof)
+            verified = pow.verify(mined_block, proof)
             if verified:
                 # add to chain
+                last_chain_block = self.chain[-1].copy()
+                last_chain_block_proof = last_chain_block["proof"]
+                del last_chain_block["proof"]
+                last_chain_block_hash = pow.calc_hash_with_proof(last_chain_block, last_chain_block_proof)
+                mined_block["lastBlockHash"] = last_chain_block_hash
+                mined_block["proof"] = proof
                 self.chain.append(mined_block)
                 # remove block from queue
                 self.blocks.remove(mined_block)

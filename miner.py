@@ -1,7 +1,6 @@
 # usage:
 # ./miner.py <wallet> --node=<node>     # starts the mining for given node and the reward for given wallet
 
-import json
 import hashlib
 import argparse
 import requests
@@ -30,8 +29,7 @@ def start(args):
     # })
     
     # start mining
-    block_string = json.dumps(block, sort_keys=True).encode()
-    proof = pow.calc_proof(block_string)
+    proof = pow.calc_proof(block)
     print(f'block mined with proof = {proof}');
 
     # send the mined block
