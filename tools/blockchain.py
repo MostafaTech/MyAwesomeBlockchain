@@ -72,3 +72,12 @@ class Blockchain(object):
                 if t["id"] == transaction_id:
                     return t
         return None
+    
+    def get_balance(self, wallet_id):
+        balance = 0
+        for b in self.chain:
+            for t in b["transactions"]:
+                if t["recipient"] == wallet_id:
+                    balance += int(t["amount"])
+        return balance
+    

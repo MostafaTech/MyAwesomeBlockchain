@@ -42,6 +42,16 @@ def cmd_verify(args):
     else:
         print('transaction is not commited yet or rejected.')
 
+def cmd_balance(args):
+    data = { 'wallet_id': args.wallet_id }
+    response = requests.post('http://127.0.0.1:5000/wallet/balance', json=data)
+    if response.status_code == 200:
+        response_data = response.json()
+        print(f'balance: {response_data["balance"]}')
+    else:
+        print('Theres an error calculating the balance of this wallet.')
+
+
 # cli parser
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers()
@@ -58,6 +68,10 @@ transfer_parser.set_defaults(func=cmd_transfer)
 verify_parser = subparsers.add_parser('verify', help='Verifies a transfer')
 verify_parser.add_argument('transaction_id', help='Transaction id to verify')
 verify_parser.set_defaults(func=cmd_verify)
+# balance command parser
+balance_parser = subparsers.add_parser('balance', help='Calculates the balance of a wallet')
+balance_parser.add_argument('wallet_id', help='Wallet id to calculate')
+balance_parser.set_defaults(func=cmd_balance)
 
 if __name__ == '__main__':
     args = parser.parse_args()

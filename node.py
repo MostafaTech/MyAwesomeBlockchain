@@ -45,6 +45,12 @@ def verify_transaction():
         return jsonify(tr), 200
     return { 'message': 'transaction does not exists' }, 404
 
+@app.route('/wallet/balance', methods=['POST'])
+def wallet_balance():
+    values = request.get_json()
+    balance = bc.get_balance(values['wallet_id'])
+    return { 'balance': balance }, 200
+
 
 if __name__ == '__main__':
     node_id = int(sys.argv[1]) if len(sys.argv) > 1 else 0
