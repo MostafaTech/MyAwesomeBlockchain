@@ -1,5 +1,6 @@
 from time import time
 from uuid import uuid4
+import requests
 import tools.pow as pow
 
 class Blockchain(object):
@@ -8,9 +9,20 @@ class Blockchain(object):
         self.blocks = []
         self.transactions = []
         self.node_id = 0
+        self.node_registery = []
     
     def set_node(self, id):
         self.node_id = id
+    
+    def add_node(self, address):
+        response = requests.get(f'{address}/chain')
+        if response.status_code == 200:
+            node_chain = response.json()
+            if len(node_chain) > len(self.chain):
+                self.chain = node_chain
+            self.node_registery.append(address)
+            return True
+        return False
 
     def add_transaction(self, sender, recipient, amount):
         tr = {
@@ -59,8 +71,13 @@ class Blockchain(object):
             self.blocks.remove(block)
             # add reward for the miner as a new transaction
             self.add_transaction(f'node_{self.node_id}', miner_wallet, 1)
+            # tell other nodes to add this block to their chain
+            self._send_block_to_other_nodes(block)
             return True, 'block added to the chain'
         return False, 'can\'t verify requested block'
+
+    def add_verified_block_to_chain(self, block):
+        self.chain.append(block)
 
     def get_first_block(self):
         if (len(self.blocks) > 0):
@@ -81,3 +98,9 @@ class Blockchain(object):
                     balance += int(t["amount"])
         return balance
     
+    def _send_block_to_other_nodes(self, block):
+        rejected_nodes = []
+        for node in self.node_registery:
+            result = requests.put(f'{node}/blocks', json=block)
+            if result.status_code != 200:
+                rejected_nodes.append(node)

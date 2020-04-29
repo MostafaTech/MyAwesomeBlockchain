@@ -17,7 +17,6 @@ def cmd_init(args):
     print(f'wallet created: {wallet}')
 
 def cmd_transfer(args):
-    print(f'initiating transfer...')
     data = {
         'sender': args.src,
         'recipient': args.dst,
@@ -26,7 +25,6 @@ def cmd_transfer(args):
     response = requests.post('http://127.0.0.1:5000/transactions', json=data)
     if response.status_code == 200:
         response_data = response.json()
-        print(f'transfer finished sucessfully')
         print(f'transaction id: {response_data["transaction_id"]}')
     else:
         print(f'transfer finished with error: {response.status_code}')
