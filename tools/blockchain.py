@@ -1,5 +1,6 @@
 from time import time
 from uuid import uuid4
+import threading
 import requests
 import tools.pow as pow
 
@@ -20,6 +21,7 @@ class Blockchain(object):
             if len(node_chain) > len(self.chain):
                 self.chain = node_chain
             self.node_registery.append(address)
+            print('[NODE] A node added successfully: ' + address)
             return True
         return False
     
@@ -38,13 +40,16 @@ class Blockchain(object):
             'amount': amount
         }
         self.transactions.append(tr)
-        # mine a block if its time to mine
+        # mine a block if its time to mine (in another thread)
         if (len(self.transactions) == 2):
-            self.mine()
+            thread = threading.Thread(target=self.mine, args=())
+            thread.start()
         # finaly
+        print('[NODE] A transaction added with id: ' + tr["id"])
         return tr
     
     def mine(self):
+        print('[NODE] Mining started')
         # calculate last block has
         last_block = self.chain[-1].copy()
         last_block_proof = last_block["proof"]
@@ -69,6 +74,7 @@ class Blockchain(object):
         block['proof'] = proof
         # append block to the chain
         self.chain.append(block)
+        print('[NODE] Mining finished successfully')
         # remove block transactions from memory
         for btr in transactions:
             for mtr in self.transactions:
@@ -87,7 +93,9 @@ class Blockchain(object):
         # add to the chain
         if verified:
             self.chain.append(block)
+            print('[NODE] A block imported successfully.')
             return True, 'block added to the chain'
+        print('[NODE] Failed to import given block. verification failed.')
         return False, 'can\'t verify requested block'
 
     def get_chain_transaction(self, transaction_id):
@@ -120,3 +128,8 @@ class Blockchain(object):
             result = requests.post(f'{node}/chain', json=block)
             if result.status_code != 200:
                 rejected_nodes.append(node)
+        # feedback
+        rejected_nodes_msg = ''
+        if len(rejected_nodes) > 0:
+            rejected_nodes_msg = f' ({len(rejected_nodes)} failed)'
+        print(f'[NODE] Sending block to other nodes finished.{rejected_nodes_msg}')
