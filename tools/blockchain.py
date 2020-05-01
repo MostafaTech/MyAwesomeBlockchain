@@ -3,6 +3,7 @@ from uuid import uuid4
 import threading
 import requests
 import tools.pow as pow
+import tools.wallet as wallet
 
 class Blockchain(object):
     def __init__(self):
@@ -10,6 +11,7 @@ class Blockchain(object):
         self.transactions = []
         self.node_id = 0
         self.node_registery = []
+        self.wallets = []
     
     def set_node(self, id):
         self.node_id = id
@@ -30,14 +32,27 @@ class Blockchain(object):
         block["proof"] = pow.calc_proof(block)
         self.chain.append(block)
 
-    def add_transaction(self, sender, recipient, amount):
+    def add_transaction(self, transaction):
+        # verify transaction
+        sender_wallet = next((w for w in self.wallets if w["name"] == transaction["sender"]), None)
+        if sender_wallet is None:
+            return False, 'sender not found'
+        transaction_without_signature = transaction.copy()
+        del transaction_without_signature["signature"]
+        if not wallet.verify_signature(sender_wallet["public_key"], transaction["signature"], transaction_without_signature):
+            return False, 'signature verification failed'
+        # find recipient wallet
+        recipient_wallet = next((w for w in self.wallets if w["name"] == transaction["recipient"]), None)
+        if recipient_wallet is None:
+            return False, 'recipient not found'
         # create and append the transaction
         tr = {
             'id': str(uuid4()),
             'timestamp': time(),
-            'sender': sender,
-            'recipient': recipient,
-            'amount': amount
+            'signature': transaction["signature"],
+            'sender': transaction["sender"],
+            'recipient': transaction["recipient"],
+            'amount': int(transaction["amount"])
         }
         self.transactions.append(tr)
         # mine a block if its time to mine (in another thread)
@@ -46,7 +61,7 @@ class Blockchain(object):
             thread.start()
         # finaly
         print('[NODE] A transaction added with id: ' + tr["id"])
-        return tr
+        return True, tr
     
     def mine(self):
         print('[NODE] Mining started')
@@ -55,14 +70,14 @@ class Blockchain(object):
         last_block_proof = last_block["proof"]
         del last_block["proof"]
         last_block_hash = pow.calc_hash_with_proof(last_block, last_block_proof)
-        # prepare transactions and add wage
+        # prepare transactions and add reward
         transactions = self.transactions.copy()
         transactions.append({
             'id': str(uuid4()),
             'timestamp': time(),
             'sender': '',
             'recipient': f'node_{self.node_id}',
-            'amount': 1
+            'amount': 10
         })
         # create the block
         block = {
@@ -105,22 +120,19 @@ class Blockchain(object):
                     return t
         return None
     
-    def get_wallet(self, wallet_id):
+    def get_wallet_item(self, wallet_id):
         balance = 0
         for b in self.chain:
             for t in b["transactions"]:
                 if t["recipient"] == wallet_id:
-                    balance += int(t["amount"])
+                    balance += t["amount"]
         return {
             'id': wallet_id,
             'balance': balance
         }
-    
-        rejected_nodes = []
-        for node in self.node_registery:
-            result = requests.put(f'{node}/transaction', json=transaction)
-            if result.status_code != 200:
-                rejected_nodes.append(node)
+
+    def add_wallet(self, wallet):
+        self.wallets.append(wallet)
 
     def _send_block_to_other_nodes(self, block):
         rejected_nodes = []

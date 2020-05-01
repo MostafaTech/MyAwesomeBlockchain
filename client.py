@@ -1,12 +1,13 @@
 # usage:
-# client.py init                                                                # inits a new wallet
+# client.py init <name>                                                         # inits a new wallet for username
+# client.py clear                                                               # removes all wallets
 # client.py [--node=<node_id=0>] transfer <src_wallet> <dst_wallet> <amount>    # transfer amount to another wallet
 # client.py [--node=<node_id=0>] verify <transaction_id>                        # checks if a transaction is verified
 # client.py [--node=<node_id=0>] balance                                        # calculate remaining of current wallet
 
-from uuid import uuid4
 import argparse
 import requests
+import tools.wallet as wallet
 
 node_url = 'http://127.0.0.1:5000'
 def set_node(node_id):
@@ -14,27 +15,43 @@ def set_node(node_id):
     node_url = f'http://127.0.0.1:{node_port}'
 
 def cmd_init(args):
-    wallet = uuid4()
-    f = open("wallets.txt", "a+")
-    f.write(f'{wallet}\n')
-    f.close()
-    print(f'wallet created: {wallet}')
+    # generate a wallet and save it in a file
+    w = wallet.generate(args.name)
+    wallet.store_in_file(w)
+    # send wallet to a node
+    wallet_json = {
+        'id': w["id"],
+        'name': w["name"],
+        'public_key': w["public_key"]
+    }
+    response = requests.post(f'{node_url}/wallets', json=wallet_json)
+    if response.status_code == 200:
+        print(f'wallet created successfully')
+    else:
+        print('failed to create new wallet')
+
+def cmd_clear(args):
+    wallet.clear_files()
 
 def cmd_transfer(args):
     set_node(args.node)
+    # prepare transaction data
     data = {
         'sender': args.src,
         'recipient': args.dst,
         'amount': args.amount
     }
+    # sign transaction
+    w = wallet.load_from_file(args.src)
+    data["signature"] = wallet.sign(w['private_key'], data)
+    # send to a node
     response = requests.post(f'{node_url}/transactions', json=data)
     if response.status_code == 200:
         response_data = response.json()
         print(f'transaction id: {response_data["transaction_id"]}')
     else:
-        print(f'transfer finished with error: {response.status_code}')
-        print(f'{response.text}')
-        print(f'{data}')
+        response_data = response.json()
+        print(f'transfer failed: {response_data["message"]}')
 
 def cmd_verify(args):
     set_node(args.node)
@@ -60,7 +77,11 @@ subparsers = parser.add_subparsers()
 parser.add_argument('--node', default='0')
 # init command parser
 init_parser = subparsers.add_parser('init', help='Creates a new wallet')
+init_parser.add_argument('name', help='Wallet user name')
 init_parser.set_defaults(func=cmd_init)
+# clear command parser
+clear_parser = subparsers.add_parser('clear', help='Removes all wallets')
+clear_parser.set_defaults(func=cmd_clear)
 # transfer command parser
 transfer_parser = subparsers.add_parser('transfer', help='Transfer an amount from one wallet to another')
 transfer_parser.add_argument('src', help='Source wallet')

@@ -19,10 +19,11 @@ def transactions_get():
 # adds a transaction from a client
 @app.route('/transactions', methods=['POST'])
 def transactions_add():
-    values = request.get_json()
-    tr = bc.add_transaction(values['sender'], values['recipient'], values['amount'])
-    res = { 'message': 'transaction added.', 'transaction_id': tr["id"] }
-    return jsonify(res), 200
+    transaction = request.get_json()
+    result = bc.add_transaction(transaction)
+    if result[0] == False:
+        return { 'message': result[1] }, 500
+    return { 'message': 'transaction added.', 'transaction_id': result[1]["id"] }, 200
 
 # verifies a transactions
 @app.route('/transactions/<transaction_id>', methods=['GET'])
@@ -46,11 +47,23 @@ def chain_post():
     bc.add_block(block)
     return { 'message': 'block added to the chain' }, 200
 
-# returns wallet data and balance
+# returns all wallets
+@app.route('/wallets', methods=['GET'])
+def wallets_get_all():
+    return jsonify(bc.wallets), 200
+
+# returns wallet item and balance
 @app.route('/wallets/<wallet_id>', methods=['GET'])
-def wallets_details(wallet_id):
-    details = bc.get_wallet(escape(wallet_id))
-    return jsonify(details), 200
+def wallets_get_item(wallet_id):
+    item = bc.get_wallet_item(escape(wallet_id))
+    return jsonify(item), 200
+
+# adds a wallet
+@app.route('/wallets', methods=['POST'])
+def wallets_post():
+    wallet = request.get_json()
+    details = bc.add_wallet(wallet)
+    return { 'message': 'wallet added to the collection' }, 200
 
 # returns all registered nodes
 @app.route('/registery', methods=['GET'])
